@@ -1,6 +1,5 @@
 package win.ixuni.yonyoudatadict.adapter;
 
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,16 +45,20 @@ public class VersionAdapterFactory {
      * 根据版本获取适配器
      */
     public VersionAdapter getAdapter(YonyouVersion version) {
+        // 调试：显示已注册的适配器
+        logger.debug("已注册的适配器列表: {}", adapterMap.keySet());
+
         VersionAdapter adapter = adapterMap.get(version);
 
         if (adapter == null) {
-            logger.warn("未找到版本 {} 的适配器，使用默认适配器", version.getDisplayName());
+            logger.warn("未找到版本 {} 的适配器，使用默认适配器。已注册版本: {}",
+                    version.getDisplayName(), adapterMap.keySet());
             // 返回YonBIP高级版适配器作为默认适配器
             adapter = adapterMap.get(YonyouVersion.YONBIP_ADVANCED);
         }
 
         if (adapter != null) {
-            logger.debug("选择适配器: {} for version: {}",
+            logger.info("选择适配器: {} for version: {}",
                     adapter.getClass().getSimpleName(),
                     version.getDisplayName());
         }
