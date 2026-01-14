@@ -1,6 +1,5 @@
 package win.ixuni.yonyoudatadict.adapter.impl;
 
-
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -34,14 +33,14 @@ public class NC65Adapter implements VersionAdapter {
     // JS数据提取的正则表达式
     private static final Pattern DATA_DICT_PATTERN = Pattern.compile(
             "var\\s+dataDictIndexData\\s*=\\s*(\\[.*?\\]);?",
-            Pattern.DOTALL
-    );
+            Pattern.DOTALL);
 
     // 单个数据项的正则表达式
+    // 支持带pId的项目格式：{id:"1",pId:"2",name:"...",url:"...",target:"..."}
+    // 支持非数字ID如：{id:"all",name:"all 所有表"}
     private static final Pattern ITEM_PATTERN = Pattern.compile(
-            "\\{\\s*id:\\s*[\"']?(\\d+)[\"']?\\s*,\\s*name:\\s*[\"']([^\"']+)[\"']\\s*\\}",
-            Pattern.DOTALL
-    );
+            "\\{\\s*id:\\s*[\"']?([^\"',}]+)[\"']?\\s*,.*?name:\\s*[\"']([^\"']+)[\"']",
+            Pattern.DOTALL);
 
     @Override
     public String buildDetailUrl(String baseUrl, String appCode, String classId) {
@@ -89,17 +88,22 @@ public class NC65Adapter implements VersionAdapter {
             detail.setClassId(classId);
 
             // 解析标题信息
+            // HTML结构为嵌套span:
+            // <div.title><span><span>表名</span><span>(表名/VO类名)</span></span><span>NC
+            // 65</span></div>
             Element titleDiv = doc.select("div.title").first();
             if (titleDiv != null) {
-                Elements titleSpans = titleDiv.select("span");
-                if (titleSpans.size() >= 2) {
-                    // 第一个span是表名
-                    String displayName = titleSpans.get(0).text().trim();
-                    detail.setDisplayName(displayName);
+                // 使用精确的CSS选择器定位嵌套的span
+                Element displayNameSpan = titleDiv.selectFirst("span > span:first-child");
+                Element fullInfoSpan = titleDiv.selectFirst("span > span:nth-child(2)");
 
-                    // 第二个span包含表名和VO类名
-                    String fullInfo = titleSpans.get(1).text().trim();
-                    // 格式：(cp_appscategory / nc.uap.cpb.org.vos.CpAppsCategoryVO)
+                if (displayNameSpan != null) {
+                    detail.setDisplayName(displayNameSpan.text().trim());
+                }
+
+                if (fullInfoSpan != null) {
+                    String fullInfo = fullInfoSpan.text().trim();
+                    // 格式：(aam_appasset / nc.vo.ncaam.appasset.AppAssetVO)
                     if (fullInfo.contains("/")) {
                         String[] parts = fullInfo.split("/");
                         if (parts.length >= 2) {
@@ -128,10 +132,10 @@ public class NC65Adapter implements VersionAdapter {
                         DataDictDetail.Property property = new DataDictDetail.Property();
 
                         // 序号在第0列，跳过
-                        property.setName(cells.get(1).text().trim());              // 属性编码
-                        property.setDisplayName(cells.get(2).text().trim());       // 属性名称
-                        property.setColumnName(cells.get(3).text().trim());        // 字段编码
-                        property.setDataTypeSql(cells.get(4).text().trim());       // 字段类型
+                        property.setName(cells.get(1).text().trim()); // 属性编码
+                        property.setDisplayName(cells.get(2).text().trim()); // 属性名称
+                        property.setColumnName(cells.get(3).text().trim()); // 字段编码
+                        property.setDataTypeSql(cells.get(4).text().trim()); // 字段类型
 
                         // 是否必输 (第5列)
                         String requiredText = cells.get(5).text().trim();
